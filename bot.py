@@ -8,9 +8,16 @@ import re
 # Logging setup
 logging.basicConfig(level=logging.INFO)
 
+# Retrieve the token from the environment variable
+TOKEN = os.getenv('DISCORD_TOKEN')
+
+# Check if the token was retrieved correctly
+if TOKEN is None:
+    raise ValueError("No Discord token found in environment variables.")
+
 # Bot Setup
-TOKEN = "DISCORD_BOT_TOKEN"  # Replace with your actual bot token
 intents = discord.Intents.default()
+intents.message_content = True  # Enable the Message Content Intent
 bot = commands.Bot(command_prefix="!", intents=intents)
 
 # Constants
