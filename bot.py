@@ -3,7 +3,6 @@ from discord.ext import commands
 import json
 import os
 import logging
-import re
 
 # Logging setup
 logging.basicConfig(level=logging.INFO)
@@ -123,8 +122,12 @@ async def rate(ctx):
         return
     
     result = []
+    seen_amounts = set()
     for group in data['codes']:
         amount = group['amount']
+        if amount in seen_amounts:
+            continue
+        seen_amounts.add(amount)
         price = group.get('price', 0)
         if price > 0:
             result.append(f"☞ {amount} 🆄︎🅲︎ ➪ {price} BDT")
