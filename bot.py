@@ -9,7 +9,7 @@ import re
 logging.basicConfig(level=logging.INFO)
 
 # Bot Setup
-TOKEN = os.getenv('DISCORD_TOKEN')  # Replace with your actual bot token
+TOKEN = os.getenv('DISCORD_TOKEN')   # Replace with your actual bot token
 intents = discord.Intents.default()
 bot = commands.Bot(command_prefix=".", intents=intents)
 
@@ -90,16 +90,20 @@ def move_used_codes(used_codes, amount, destination_file=REMOVED_FILE_NAME):
     if not destination_group:
         destination_group = {"amount": amount, "codes": [], "price": 0}  # Include price field
         destination_data['codes'].append(destination_group)
-    
+
     # Include price from codes.json
     source_data = load_codes(FILE_NAME)
     source_group = next((item for item in source_data['codes'] if item['amount'] == amount), None)
     if source_group:
         destination_group['price'] = source_group.get('price', 0)
-        
-    destination_group['codes'].extend(used_codes)
+
+    # Filter out only actual redeemed codes with a valid 'code' key
+    redeemed_codes = [code for code in used_codes if 'code' in code]
+
+    destination_group['codes'].extend(redeemed_codes)
     save_codes(destination_data, destination_file)
-    logging.info(f"Moved {len(used_codes)} used codes to {destination_file}")
+    logging.info(f"Moved {len(redeemed_codes)} used codes to {destination_file}")
+
 
 # New function to check used codes with pricing in used.json
 def check_removed_codes(file_name=REMOVED_FILE_NAME):
@@ -209,8 +213,18 @@ async def baki(ctx, amount: int, count: int = 1):
     """Retrieve UC codes"""
     result = process_order(amount, count)
     if result:
+        codes_output = '\n'.join(result.split('\n')[:-2])  # Only take the valid codes part of the output
+        codes = [code.strip() for code in codes_output.split("\n") if " " in code]  # Extract valid code strings
+        order_summary = result.split('\n')[-2:]  # Extract the order summary and exclude from codes
+        
+        # Ensure only valid codes are moved
+        used_codes = [{"code": code, "redeemed": True} for code in codes]
+
+        # Send result to Discord
         await ctx.send(result)
-        move_used_codes([{"code": code, "redeemed": True} for code in result.split('\n') if code], amount)
+        
+        # Move used codes to used.json
+        move_used_codes(used_codes, amount)
     else:
         await ctx.send(f"❌ Not enough available {amount} UC codes.")
 
