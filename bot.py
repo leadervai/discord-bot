@@ -25,6 +25,7 @@ REMOVED_FILE_NAME = 'used.json'
 
 # Helper functions
 def load_codes(file_name=FILE_NAME):
+    logging.info(f"Loading codes from {file_name}")
     if os.path.exists(file_name):
         try:
             with open(file_name, 'r') as file:
@@ -35,6 +36,7 @@ def load_codes(file_name=FILE_NAME):
     return {"codes": []}
 
 def save_codes(data, file_name=FILE_NAME):
+    logging.info(f"Saving codes to {file_name}")
     try:
         with open(file_name, 'w') as file:
             json.dump(data, file, indent=4)
@@ -42,15 +44,18 @@ def save_codes(data, file_name=FILE_NAME):
         logging.error(f"Error saving file: {e}")
 
 def get_codes(amount, count=1):
+    logging.info(f"Getting {count} codes for amount {amount}")
     data = load_codes(FILE_NAME)
     group = next((item for item in data['codes'] if item['amount'] == amount), None)
 
     if not group:
+        logging.warning(f"No group found for amount {amount}")
         return None
     
     available_codes = [code for code in group['codes'] if not code['redeemed']]
     
     if len(available_codes) < count:
+        logging.warning(f"Not enough available codes for amount {amount}")
         return None
 
     selected_codes = available_codes[:count]
@@ -65,11 +70,13 @@ def get_codes(amount, count=1):
 
 @bot.event
 async def on_ready():
+    logging.info(f"✅ Logged in as {bot.user}")
     print(f"✅ Logged in as {bot.user}")
 
 @bot.command()
 async def stock(ctx):
     """Check available UC stock"""
+    logging.info("Stock command called")
     data = load_codes()
     if not data['codes']:
         await ctx.send("No codes available.")
@@ -86,6 +93,7 @@ async def stock(ctx):
 @bot.command()
 async def get(ctx, amount: int, count: int = 1):
     """Retrieve UC codes"""
+    logging.info(f"Get command called for amount: {amount}, count: {count}")
     codes = get_codes(amount, count)
     if codes:
         codes_output = '\n'.join(codes)
@@ -96,6 +104,7 @@ async def get(ctx, amount: int, count: int = 1):
 @bot.command()
 async def set_price(ctx, amount: int, price: float):
     """Set the price for a UC package"""
+    logging.info(f"Set_price command called for amount: {amount}, price: {price}")
     data = load_codes()
     group = next((item for item in data['codes'] if item['amount'] == amount), None)
     
@@ -110,12 +119,14 @@ async def set_price(ctx, amount: int, price: float):
 @bot.command()
 async def remove(ctx):
     """Clear used codes"""
+    logging.info("Remove command called")
     save_codes({"codes": []}, REMOVED_FILE_NAME)
     await ctx.send("✅ Cleared all used codes.")
 
 @bot.command()
 async def rate(ctx):
     """Show UC prices"""
+    logging.info("Rate command called")
     data = load_codes()
     if not data['codes']:
         await ctx.send("No UC codes available.")
