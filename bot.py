@@ -212,11 +212,10 @@ async def baki(ctx, amount: int, count: int = 1):
     result = process_order(amount, count)
     if result:
         codes_output = '\n'.join(result.split('\n')[:-2])  # Only take the valid codes part of the output
-        codes = [code.strip() for code in codes_output.split("\n") if " " in code]  # Extract valid code strings
-        order_summary = result.split('\n')[-2:]  # Extract the order summary and exclude from codes
-        
+        codes = [code.strip() for code in codes_output.split("\n") if "```" in code]  # Extract valid code strings
+
         # Ensure only valid codes are moved
-        used_codes = [{"code": code, "redeemed": True} for code in codes]
+        used_codes = [{"code": code.strip(), "redeemed": True} for code in codes]
 
         # Send result to Discord
         await ctx.send(result)
@@ -225,6 +224,7 @@ async def baki(ctx, amount: int, count: int = 1):
         move_used_codes(used_codes, amount)
     else:
         await ctx.send(f"❌ Not enough available {amount} UC codes.")
+
 
 @bot.command()
 async def price(ctx, amount: int, price: float):
