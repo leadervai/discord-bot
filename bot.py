@@ -9,7 +9,7 @@ import re
 logging.basicConfig(level=logging.INFO)
 
 # Bot Setup
-TOKEN = os.getenv('DISCORD_TOKEN')   # Replace with your actual bot token
+TOKEN = os.getenv('DISCORD_TOKEN')  # Replace with your actual bot token
 intents = discord.Intents.default()
 bot = commands.Bot(command_prefix=".", intents=intents)
 
@@ -124,6 +124,13 @@ def check_removed_codes(file_name=REMOVED_FILE_NAME):
     result.append(f"\nTotal due: {total_sum} tk")
     return "\n".join(result)
 
+
+
+
+
+
+    
+
 # New function to check stock with total sum
 def check_stock(file_name=FILE_NAME):
     data = load_codes(file_name)
@@ -143,15 +150,6 @@ def check_stock(file_name=FILE_NAME):
 
     result.append(f"\nWᴏʀᴛʜ Oғ : {total_sum} tk")
     print("\n".join(result))
-
-
-
-
-
-
-
-
-
 
 
 #creating a total due file 
@@ -184,7 +182,7 @@ def process_order(amount, count):
     result = get_codes(amount, count)
     if result:
         amount, codes = result
-        codes_output = '\n'.join(codes)
+        codes_output = '```\n```'.join(codes)
         
         data = load_codes(FILE_NAME)
         group = next((item for item in data['codes'] if item['amount'] == amount), None)
@@ -193,8 +191,8 @@ def process_order(amount, count):
             total_due += price * count  # Increment total_due
             save_total_due(total_due)  # Save total_due to file
         
-        order_output = f"{codes_output}\n\n✓ {amount} 🆄︎🅲︎  x  {count}  ✓\n"
-        order_output += f"Tᴏᴛᴀʟ Dᴜᴇ : {total_due - (price * count)} + ({price}x{count}) = {total_due} tk"
+        order_output = f"Here are your codes:\n ```{codes_output}```\n✓ {amount} 🆄︎🅲︎  x  {count}  ✓\n\n"
+        order_output += f"Tᴏᴛᴀʟ Dᴜᴇ : {total_due - (price * count)}+({price}x{count}) = {total_due}"
         return order_output
     else:
         logging.warning(f"Not enough available {amount}uc codes.")
@@ -263,6 +261,11 @@ async def rate(ctx):
         await ctx.send("No prices set for UC codes.")
     else:
         await ctx.send("\n".join(result))
+        
+    
+@bot.command()
+async def hi(ctx):
+    await ctx.send("Hi Darling! 😘")
 
 @bot.command()
 async def stock(ctx):
@@ -290,6 +293,87 @@ async def check(ctx):
     """Check removed codes with total sum"""
     result = check_removed_codes()
     await ctx.send(result)
+
+    # Load codes from JSON file
+def load_codes(file_name=FILE_NAME):
+    if os.path.exists(file_name):
+        try:
+            with open(file_name, 'r') as file:
+                return json.load(file)
+        except json.JSONDecodeError:
+            logging.error("JSON file is corrupted. Resetting to empty data.")
+            return {"codes": []}
+    return {"codes": []}
+
+# Save codes to JSON file
+def save_codes(data, file_name=FILE_NAME):
+    try:
+        with open(file_name, 'w') as file:
+            json.dump(data, file, indent=4)
+    except IOError as e:
+        logging.error(f"Error saving file: {e}")
+
+# Add codes grouped by amount
+async def add_codes(ctx, amount, codes, file_name=FILE_NAME):
+    data = load_codes(file_name)
+    group = next((item for item in data['codes'] if item['amount'] == amount), None)
+    
+    if not group:
+        group = {"amount": amount, "codes": [], "price": 0}
+        data['codes'].append(group)
+    
+    existing_codes = {code['code'] for code in group['codes']}
+    new_codes = []
+
+    for code in codes:
+        if code.strip() not in existing_codes:
+            new_codes.append({"code": code.strip(), "redeemed": False})
+            existing_codes.add(code.strip())
+        else:
+            warning_message = f"Duplicate code detected: ```{code.strip()}```"
+            logging.warning(warning_message)
+            await ctx.send(warning_message)
+
+    group['codes'].extend(new_codes)
+    
+    save_codes(data, file_name)
+    log_message = f"Added {len(new_codes)} codes for amount: {amount}"
+    logging.info(log_message)
+    await ctx.send(log_message)
+
+# Function to process the upload command
+async def process_upload_command(ctx, command):
+    parts = command.split(' ', 2)
+    if len(parts) < 3:
+        logging.error("Invalid command format. Use: .up <amount>uc <codes>")
+        await ctx.send("Invalid command format. Use: .up <amount>uc <codes>")
+        return
+
+    amount_code, codes = parts[1], parts[2]
+    try:
+        amount = int(amount_code[:-2])
+    except ValueError:
+        logging.error("Invalid amount format. Please provide a valid number before 'uc'.")
+        await ctx.send("Invalid amount format. Please provide a valid number before 'uc'.")
+        return
+
+    # Extract each code using a flexible pattern
+    pattern = r'[a-zA-Z]{4}-[a-zA-Z]-S-\d{8} \d{4}-\d{4}-\d{4}-\d{4}'
+    clean_codes = re.findall(pattern, codes)
+
+    if not clean_codes:
+        logging.error("No valid codes found.")
+        await ctx.send("No valid codes found.")
+        return
+
+    await add_codes(ctx, amount, clean_codes)
+
+# Process the commands
+@bot.command()
+async def up(ctx, *, command):
+    await process_upload_command(ctx, f"up {command}")
+
+    
 
 # Run the bot
 bot.run(TOKEN)
